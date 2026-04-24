@@ -1,0 +1,468 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TripMind — styles.css  (complete, all sections covered)
+   Works in Chrome, Firefox, Safari, Edge — no build step required
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. CSS CUSTOM PROPERTIES ───────────────────────────────────────────── */
+:root {
+  /* Colours */
+  --bg:       #0b0f1a;
+  --surface:  #131929;
+  --card:     #1a2236;
+  --border:   rgba(255,255,255,.07);
+  --border2:  rgba(255,255,255,.13);
+  --text:     #e8eaf0;
+  --muted:    #7a8499;
+  --accent:   #4fa8ff;
+  --accent2:  #7c5cfc;
+  --accent3:  #00e5b0;
+  --warn:     #ffb347;
+  --danger:   #ff5f6d;
+  --success:  #00e5b0;
+  --gold:     #ffd060;
+  /* Radii */
+  --r:        14px;
+  --r-lg:     20px;
+  /* Typography */
+  --font:   'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --serif:  'Playfair Display', Georgia, serif;
+}
+
+/* ── 2. RESET & BASE ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html  { scroll-behavior: smooth; }
+body  {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 15px;
+  line-height: 1.6;
+}
+a           { color: var(--accent); text-decoration: none; }
+a:hover     { text-decoration: underline; }
+h1 { font-family: var(--serif); font-size: clamp(32px,5vw,60px); font-weight: 900; line-height: 1.1; }
+h2 { font-size: 22px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 600; }
+
+/* ── 3. NAVIGATION ───────────────────────────────────────────────────────── */
+.nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 40px; border-bottom: 1px solid var(--border);
+  background: rgba(11,15,26,.96); position: sticky; top: 0; z-index: 100;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.logo {
+  font-family: var(--serif); font-size: 26px; font-weight: 900;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.logo span {
+  background: linear-gradient(135deg, var(--accent3), #0fb);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.nav-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.nav-tab {
+  padding: 8px 15px; border-radius: 40px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: 1px solid transparent; background: transparent;
+  color: var(--muted); font-family: var(--font); transition: all .2s; white-space: nowrap;
+}
+.nav-tab:hover  { background: var(--card); color: var(--text); border-color: var(--border); }
+.nav-tab.active { background: var(--card); border-color: var(--accent); color: var(--accent); }
+
+/* ── 4. HERO ─────────────────────────────────────────────────────────────── */
+.hero {
+  padding: 70px 40px 50px; text-align: center;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,168,255,.12), transparent 70%);
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 {
+  background: linear-gradient(160deg, #e8eaf0 40%, var(--accent));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: 14px;
+}
+.hero p { font-size: 17px; color: var(--muted); max-width: 520px; margin: 0 auto 36px; }
+.hero-search {
+  display: flex; gap: 10px; max-width: 620px; margin: 0 auto;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 50px; padding: 8px 8px 8px 22px; transition: border-color .2s;
+}
+.hero-search:focus-within { border-color: rgba(79,168,255,.4); }
+.hero-search input {
+  flex: 1; background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 15px; font-family: var(--font);
+}
+.hero-search input::placeholder { color: var(--muted); }
+
+/* ── 5. BUTTONS ──────────────────────────────────────────────────────────── */
+.btn, button.btn {
+  padding: 10px 24px; border-radius: 40px; border: 1px solid transparent;
+  font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font);
+  transition: all .2s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.btn-primary          { background: var(--accent); color: #0b0f1a; border-color: var(--accent); }
+.btn-primary:hover    { background: #77c0ff; transform: translateY(-1px); }
+.btn-ghost            { background: transparent; color: var(--muted); border-color: var(--border); }
+.btn-ghost:hover      { border-color: var(--accent); color: var(--accent); }
+.btn-danger           { background: transparent; color: var(--danger); border-color: rgba(255,95,109,.3); }
+.btn-danger:hover     { background: rgba(255,95,109,.1); }
+.btn-sm               { padding: 5px 12px; font-size: 12px; border-radius: 20px; }
+
+/* ── 6. LAYOUT GRIDS ─────────────────────────────────────────────────────── */
+.container  { max-width: 1200px; margin: 0 auto; padding: 0 40px 80px; }
+.grid-2     { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; }
+.grid-3     { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+.grid-4     { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+.grid-main  { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+
+/* ── 7. CARDS ────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 24px;
+  position: relative; overflow: hidden; transition: border-color .2s;
+}
+.card:hover { border-color: rgba(79,168,255,.18); }
+.card-title {
+  font-size: 12px; font-weight: 700; letter-spacing: .9px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.card-title .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── 8. TAB SECTIONS ─────────────────────────────────────────────────────── */
+.tab-section        { display: none; }
+.tab-section.active { display: block; }
+
+/* ── 9. CHIPS / BADGES ───────────────────────────────────────────────────── */
+.chip         { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.chip-green   { background: rgba(0,229,176,.12);  color: var(--success); }
+.chip-yellow  { background: rgba(255,179,71,.12); color: var(--warn); }
+.chip-red     { background: rgba(255,95,109,.12); color: var(--danger); }
+.chip-blue    { background: rgba(79,168,255,.12); color: var(--accent); }
+
+/* ── 10. SAFETY METER ────────────────────────────────────────────────────── */
+.safety-meter-wrap  { display: flex; flex-direction: column; align-items: center; padding: 24px 20px; }
+.meter-svg          { width: 140px; height: 140px; }
+.meter-bg           { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 10; }
+.meter-circle       { fill: none; stroke-width: 10; stroke-linecap: round; transition: stroke-dashoffset 1s ease, stroke .5s; }
+.safety-label       { font-size: 20px; font-weight: 700; margin-top: 10px; text-align: center; }
+.safety-sub         { font-size: 13px; color: var(--muted); text-align: center; max-width: 220px; margin-top: 6px; }
+
+/* Score bars */
+.score-bars         { margin-top: 18px; width: 100%; }
+.score-bar-row      { margin-bottom: 12px; }
+.score-bar-label    { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+.score-bar-track    { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
+.score-bar-fill     { height: 100%; border-radius: 3px; transition: width 1s ease, background .5s; }
+
+/* ── 11. WEATHER ─────────────────────────────────────────────────────────── */
+.weather-main-temp  { font-size: 72px; font-weight: 800; line-height: 1; }
+.weather-main-unit  { font-size: 32px; color: var(--muted); }
+.weather-grid       { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 20px; }
+.weather-stat       { background: var(--surface); border-radius: var(--r); padding: 12px; text-align: center; }
+.weather-stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+.weather-stat-val   { font-size: 18px; font-weight: 700; }
+
+/* ── 12. FORECAST STRIP ──────────────────────────────────────────────────── */
+.forecast-strip { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.forecast-card  {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 8px; text-align: center; min-width: 72px;
+}
+.forecast-card.today { border-color: rgba(79,168,255,.4); }
+.fc-day   { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
+.fc-icon  { font-size: 28px; margin: 8px 0; }
+.fc-temps { display: flex; justify-content: center; gap: 6px; font-size: 14px; }
+.fc-max   { font-weight: 700; }
+.fc-min   { color: var(--muted); }
+.fc-desc  { font-size: 10px; color: var(--muted); margin-top: 4px; }
+.fc-rain  { font-size: 11px; color: var(--accent); margin-top: 3px; }
+
+/* ── 13. TRAFFIC & ROUTE ─────────────────────────────────────────────────── */
+.traffic-seg        { margin-bottom: 14px; }
+.traffic-seg-label  { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+.traffic-track      { height: 8px; border-radius: 4px; background: var(--surface); overflow: hidden; }
+.traffic-fill       { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
+
+/* Route option cards (alternate routes + hotel comparison) */
+.route-option {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px; background: var(--surface); border-radius: var(--r);
+  border: 1px solid var(--border); margin-bottom: 10px; transition: border-color .2s;
+}
+.route-option:hover        { border-color: rgba(79,168,255,.3); }
+.route-option.recommended  { border-color: rgba(0,229,176,.3); }
+
+/* Map overlay toggle buttons */
+.map-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+
+/* ── 14. LEAFLET MAP ─────────────────────────────────────────────────────── */
+/* The container height is set inline (360px) so Leaflet renders correctly.
+   These rules style the Leaflet UI components to match the dark theme.     */
+#mapContainer {
+  width: 100%;
+  height: 360px;                  /* CRITICAL — Leaflet needs explicit height */
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface);
+  z-index: 1;
+}
+
+/* Dark-theme overrides for Leaflet popups */
+.leaflet-popup-content-wrapper {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5) !important;
+}
+.leaflet-popup-tip              { background: var(--card) !important; }
+.leaflet-popup-content          { font-family: var(--font); font-size: 13px; }
+.leaflet-popup-close-button     { color: var(--muted) !important; }
+
+/* Zoom control */
+.leaflet-control-zoom a {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border-color: var(--border2) !important;
+  font-family: var(--font);
+}
+.leaflet-control-zoom a:hover   { background: var(--surface) !important; }
+
+/* Attribution bar */
+.leaflet-control-attribution {
+  background: rgba(11,15,26,.75) !important;
+  color: var(--muted) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a  { color: var(--accent) !important; }
+
+/* Tile layer */
+.leaflet-tile-pane              { filter: brightness(.9) saturate(.7); }
+
+/* ── 15. ALERTS ──────────────────────────────────────────────────────────── */
+.alert {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px; border-radius: 12px;
+  margin-bottom: 10px; font-size: 13px; line-height: 1.6;
+}
+.alert-icon     { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.alert-success  { background: rgba(0,229,176,.08);   border: 1px solid rgba(0,229,176,.2); }
+.alert-warn     { background: rgba(255,179,71,.08);  border: 1px solid rgba(255,179,71,.2); }
+.alert-danger   { background: rgba(255,95,109,.08);  border: 1px solid rgba(255,95,109,.2); }
+.alert-info     { background: rgba(79,168,255,.08);  border: 1px solid rgba(79,168,255,.2); }
+
+/* ── 16. CALENDAR ────────────────────────────────────────────────────────── */
+.cal-month-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.cal-month-header button {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  font-family: var(--font); font-size: 16px;
+}
+.cal-month-header button:hover { border-color: var(--accent); color: var(--accent); }
+.cal-grid   { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
+.cal-head   { font-size: 10px; font-weight: 700; color: var(--muted); text-align: center; padding: 4px 0; text-transform: uppercase; }
+.cal-day    {
+  aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center;
+  justify-content: center; font-size: 12px; cursor: pointer;
+  border: 1px solid transparent; transition: all .15s;
+}
+.cal-day:hover          { background: var(--surface); }
+.cal-day.today          { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.cal-day.holiday        { background: rgba(255,95,109,.15); color: var(--danger); font-weight: 600; }
+.cal-day.trip           { background: rgba(79,168,255,.15); color: var(--accent); font-weight: 600; }
+.cal-day.holiday.trip   { background: rgba(255,95,109,.2); color: var(--danger); }   /* overlap */
+.cal-day.empty          { pointer-events: none; opacity: 0; }
+.cal-legend             { display: flex; gap: 16px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+.leg-item               { display: flex; align-items: center; gap: 5px; }
+.leg-dot                { width: 8px; height: 8px; border-radius: 2px; }
+.leg-dot.holiday        { background: rgba(255,95,109,.4); border: 1px solid var(--danger); }
+.leg-dot.trip           { background: rgba(79,168,255,.3); border: 1px solid var(--accent); }
+.leg-dot.today          { border: 1px solid var(--accent); }
+
+/* ── 17. PACKING CHECKLIST ───────────────────────────────────────────────── */
+.checklist-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px; cursor: pointer; user-select: none; transition: opacity .2s;
+}
+.checklist-item:last-child              { border-bottom: none; }
+.check-box {
+  width: 20px; height: 20px; border-radius: 5px;
+  border: 2px solid var(--border2); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; transition: all .2s;
+}
+.checklist-item.done                    { opacity: .6; }
+.checklist-item.done .check-box         { background: var(--success); border-color: var(--success); color: #000; }
+.checklist-item.done .check-box::after  { content: "✓"; }
+.checklist-item.done .check-text        { text-decoration: line-through; color: var(--muted); }
+
+/* ── 18. BUDGET SECTION ──────────────────────────────────────────────────── */
+/* Expense breakdown rows */
+.budget-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 120px 24px;
+  gap: 8px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center; font-size: 14px;
+}
+.budget-row:last-child  { border-bottom: none; }
+.budget-total           { font-weight: 700; border-top: 2px solid var(--border); padding-top: 14px; }
+
+/* Dual progress bar (confirmed + estimated) */
+.budget-dual-bar { height: 12px; border-radius: 6px; background: var(--surface); overflow: hidden; display: flex; }
+
+/* Hide spinner arrows on number inputs inside budget */
+#budgetRows input[type="number"]::-webkit-inner-spin-button,
+#budgetRows input[type="number"]::-webkit-outer-spin-button,
+#totalBudgetInput::-webkit-inner-spin-button,
+#totalBudgetInput::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+#budgetRows input[type="number"],
+#totalBudgetInput {
+  -webkit-appearance: none; appearance: none;
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; background: var(--surface); color: var(--text);
+  font-size: 13px; text-align: right; transition: border-color .2s;
+}
+#totalBudgetInput:focus { border-bottom-color: var(--accent) !important; }
+
+/* ── 19. TRIP HISTORY ────────────────────────────────────────────────────── */
+.history-card               { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 20px; margin-bottom: 12px; transition: border-color .2s; }
+.history-card:hover         { border-color: rgba(79,168,255,.25); }
+.history-header             { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+.history-route              { font-size: 15px; font-weight: 700; display: block; }
+.history-dates              { font-size: 12px; color: var(--muted); }
+.history-meta               { display: flex; align-items: center; gap: 8px; }
+.history-body               { font-size: 13px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.history-actions            { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Safety score badges */
+.safety-badge           { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; background: rgba(79,168,255,.12); color: var(--accent); }
+.safety-badge.safe      { background: rgba(0,229,176,.12);  color: var(--success); }
+.safety-badge.moderate  { background: rgba(255,179,71,.12); color: var(--warn); }
+.safety-badge.risky     { background: rgba(255,95,109,.12); color: var(--danger); }
+
+/* Trip status badges */
+.status-badge           { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.status-planned         { background: rgba(79,168,255,.1);  color: var(--accent); }
+.status-completed       { background: rgba(0,229,176,.1);   color: var(--success); }
+.status-cancelled       { background: rgba(255,95,109,.1);  color: var(--danger); }
+
+/* ── 20. FORMS ───────────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 16px; }
+label {
+  display: block; font-size: 12px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 7px;
+}
+input[type="text"],
+input[type="date"],
+input[type="number"],
+input[type="email"],
+select,
+textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; color: var(--text);
+  font-size: 14px; font-family: var(--font);
+  outline: none; transition: border-color .2s;
+  -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus, textarea:focus { border-color: rgba(79,168,255,.5); }
+input::placeholder  { color: var(--muted); }
+select              { cursor: pointer; }
+select option       { background: var(--card); color: var(--text); }
+
+/* Date input calendar icon colour fix for dark backgrounds */
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.6); cursor: pointer; }
+
+/* ── 21. LOADING & EMPTY STATES ──────────────────────────────────────────── */
+.loading-panel          { position: relative; pointer-events: none; }
+.loading-panel::after   {
+  content: ""; position: absolute; inset: 0;
+  background: rgba(11,15,26,.5); border-radius: inherit;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer { 0%,100% { opacity: .4; } 50% { opacity: .8; } }
+.loading-spinner        { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+.empty-state            { text-align: center; padding: 30px; color: var(--muted); font-size: 14px; }
+
+/* ── 22. TOAST NOTIFICATION ──────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 30px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--card); border: 1px solid var(--border2); color: var(--text);
+  padding: 12px 24px; border-radius: 40px; font-size: 14px; font-weight: 500;
+  z-index: 9999; opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s;
+  box-shadow: 0 4px 20px rgba(0,0,0,.4); white-space: nowrap;
+}
+#toast.show             { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.toast-success    { border-color: rgba(0,229,176,.4);  color: var(--success); }
+#toast.toast-error      { border-color: rgba(255,95,109,.4); color: var(--danger); }
+#toast.toast-info       { border-color: rgba(79,168,255,.4); color: var(--accent); }
+
+/* ── 23. FLOATING ACTION BUTTON ──────────────────────────────────────────── */
+.fab {
+  position: fixed; bottom: 30px; right: 30px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; border: none; border-radius: 50%;
+  width: 58px; height: 58px; font-size: 22px; cursor: pointer;
+  box-shadow: 0 4px 24px rgba(79,168,255,.35);
+  z-index: 200; transition: transform .2s;
+  display: flex; align-items: center; justify-content: center;
+}
+.fab:hover { transform: scale(1.1); }
+
+/* ── 24. MISC UTILITIES ──────────────────────────────────────────────────── */
+.divider        { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+.section-header { font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin: 28px 0 14px; }
+
+/* ── 25. SCROLLBAR ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar         { width: 6px; height: 6px; }
+::-webkit-scrollbar-track   { background: transparent; }
+::-webkit-scrollbar-thumb   { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.2); }
+
+/* ── 26. RESPONSIVE — TABLET (≤900px) ───────────────────────────────────── */
+@media (max-width: 900px) {
+  .grid-main  { grid-template-columns: 1fr; }
+  .grid-3     { grid-template-columns: repeat(2,1fr); }
+  .grid-4     { grid-template-columns: repeat(2,1fr); }
+  #mapContainer { height: 300px; }
+}
+
+/* ── 27. RESPONSIVE — MOBILE (≤640px) ───────────────────────────────────── */
+@media (max-width: 640px) {
+  .nav                { padding: 12px 20px; }
+  .nav-tabs           { display: none; }               /* replaced by mobile-nav */
+  .hero               { padding: 40px 20px 30px; }
+  .container          { padding: 0 20px 70px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .forecast-strip     { grid-template-columns: repeat(4,1fr); }
+  .weather-grid       { grid-template-columns: repeat(2,1fr); }
+  #mapContainer       { height: 260px; }
+
+  /* Bottom navigation bar for mobile */
+  .mobile-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    display: flex; z-index: 150; padding: 8px 0;
+  }
+  .mobile-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 6px 4px; font-size: 10px; color: var(--muted);
+    background: none; border: none; cursor: pointer; font-family: var(--font);
+  }
+  .mobile-nav-btn.active  { color: var(--accent); }
+  .mobile-nav-btn .mn-icon { font-size: 20px; }
+  body                     { padding-bottom: 70px; }
+  .fab                     { bottom: 80px; }           /* above mobile nav */
+}
+
+/* ── 28. PRINT ───────────────────────────────────────────────────────────── */
+@media print {
+  .nav, .fab, .mobile-nav, #toast { display: none !important; }
+  body    { background: #fff; color: #000; }
+  .card   { border: 1px solid #ccc; page-break-inside: avoid; background: #fff; }
+  a       { color: #000; text-decoration: underline; }
+  #mapContainer { display: none; }                     /* map won't print well */
+}

@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TripMind — Smart Holiday Planner with live traffic, weather, public holiday alerts and Firebase history.">
+  <title>TripMind — MySmart Holiday Planner</title>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       EXTERNAL FONTS — Google Fonts (loaded before CSS so text never flashes)
+       Playfair Display  → used for the logo and hero heading
+       DM Sans           → used for all body text, labels, buttons
+  ════════════════════════════════════════════════════════════════════════ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       LEAFLET CSS — must load BEFORE leaflet.js (loaded at bottom of body)
+       Source : unpkg.com  |  Version : 1.9.4  |  FREE — no API key needed
+       Used for : interactive map on the Traffic tab
+  ════════════════════════════════════════════════════════════════════════ -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="">
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       APP STYLESHEET
+       File   : css/styles.css
+       Covers : dark theme, layout grids, cards, nav, map overrides,
+                weather, forecast, traffic, calendar, packing, budget,
+                history, alerts, toast, FAB, responsive breakpoints
+  ════════════════════════════════════════════════════════════════════════ -->
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       FIREBASE SDK (compat v9 — loaded in <head> so Firestore is ready
+       before DOMContentLoaded fires in main.js)
+       firebase-app-compat.js     → initialises the Firebase app
+       firebase-firestore-compat.js → enables the Firestore database
+       Your project credentials go in js/config.js → FIREBASE: { ... }
+  ════════════════════════════════════════════════════════════════════════ -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     NAVIGATION BAR
+     Sticky top bar — tabs call showTab(name) defined in js/main.js
+════════════════════════════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="logo">Trip<span>Mind</span></div>
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="dashboard" onclick="showTab('dashboard')">🎯 Dashboard</button>
+    <button class="nav-tab"        data-tab="traffic"   onclick="showTab('traffic')">🚗 Traffic</button>
+    <button class="nav-tab"        data-tab="weather"   onclick="showTab('weather')">🌤 Weather</button>
+    <button class="nav-tab"        data-tab="holidays"  onclick="showTab('holidays')">📅 Holidays</button>
+    <button class="nav-tab"        data-tab="budget"    onclick="showTab('budget')">💰 Budget</button>
+    <button class="nav-tab"        data-tab="checklist" onclick="showTab('checklist')">✅ Packing</button>
+    <button class="nav-tab"        data-tab="history"   onclick="showTab('history')">🗂 History</button>
+  </div>
+
+  <!-- refreshDashboard() is defined in js/main.js -->
+  <button class="btn btn-primary" id="refreshBtn" onclick="refreshDashboard()">🔄 Refresh</button>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     HERO SECTION
+     Big headline + search box. Pressing Enter or clicking "Plan Trip"
+     copies the value into #destination and calls refreshDashboard().
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <h1>Plan smarter.<br>Travel fearless.</h1>
+  <p>Live traffic, weather, public holiday alerts — everything before you leave home.</p>
+  <div class="hero-search">
+    <span style="font-size:18px">📍</span>
+    <input type="text" id="heroInput"
+      placeholder="Enter your destination — e.g. Goa, Manali, Paris…"
+      onkeydown="if(event.key==='Enter'){
+        document.getElementById('destination').value=this.value;
+        refreshDashboard();
+      }">
+    <button class="btn btn-primary"
+      onclick="document.getElementById('destination').value=document.getElementById('heroInput').value;refreshDashboard()">
+      Plan Trip
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MAIN CONTAINER — holds Trip Setup bar + all 7 tab sections
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="container">
+
+  <!-- ── TRIP SETUP BAR (visible on all tabs) ──────────────────────────── -->
+  <div class="card" style="margin-top:28px">
+    <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Trip Setup</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px">
+      <div class="form-group" style="margin:0">
+        <label>From</label>
+        <input type="text" id="origin" value="Hyderabad, India">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Destination</label>
+        <input type="text" id="destination" value="Goa, India">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Start Date</label>
+        <input type="email" id="startDate">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>End Date</label>
+        <input type="date" id="endDate">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Travelers</label>
+        <select id="travelers">
+          <option>Solo</option>
+          <option>2 Adults</option>
+          <option selected>Family (4)</option>
+          <option>Group (6+)</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Budget Range</label>
+        <select id="budget">
+          <option>Budget (&lt;₹10k)</option>
+          <option selected>Mid-range (₹10–30k)</option>
+          <option>Premium (₹30k+)</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-primary" onclick="refreshDashboard()">🔄 Update Dashboard</button>
+      <!-- saveCurrentTrip() is in js/main.js — saves to Firebase via js/firebase.js -->
+      <button class="btn btn-ghost"   onclick="saveCurrentTrip()">💾 Save Trip</button>
+      <button class="btn btn-ghost"   onclick="window.print()">🖨️ Print Plan</button>
+      <!-- travelScore and travelScoreLabel are set by renderTravelScore() in js/main.js -->
+      <span style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <span id="travelScore"      style="font-size:22px;font-weight:800"></span>
+        <span id="travelScoreLabel" style="font-size:13px;color:var(--muted)"></span>
+      </span>
+    </div>
+  </div><!-- /trip setup -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 1 — DASHBOARD
+       Safety Meter + weather snapshot + live alerts + calendar + forecast
+       All data populated by refreshDashboard() in js/main.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section active" id="tab-dashboard">
+    <div class="grid-main" style="margin-top:24px">
+
+      <!-- LEFT: Safety Meter + Live Alerts -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Safety Meter — SVG circle, animated by renderSafetyMeter() in js/main.js -->
+        <div class="card loading-panel">
+          <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Safety Meter</div>
+          <div class="safety-meter-wrap">
+            <svg class="meter-svg" viewBox="0 0 120 120">
+              <circle class="meter-bg"     cx="60" cy="60" r="54"/>
+              <!-- meter-circle stroke-dashoffset is animated in renderSafetyMeter() -->
+              <circle class="meter-circle" cx="60" cy="60" r="54"
+                      stroke-dasharray="339.3" stroke-dashoffset="339.3"/>
+              <text class="meter-value" id="meterValue"
+                    x="60" y="57" text-anchor="middle" dominant-baseline="middle">—</text>
+              <text x="60" y="74" text-anchor="middle"
+                    style="font-size:11px;fill:var(--muted);font-family:'DM Sans',sans-serif">/100</text>
+            </svg>
+            <div class="safety-label" id="safetyLabel">Calculating…</div>
+            <div class="safety-sub"   id="safetySubLabel">Enter your trip details above</div>
+          </div>
+          <!-- Score bars — widths set by updateBar() in js/main.js -->
+          <div class="score-bars">
+            <div class="score-bar-row">
+              <div class="score-bar-label"><span>🌤 Weather</span><span id="barWeatherPct">—</span></div>
+              <div class="score-bar-track"><div class="score-bar-fill" id="barWeather" style="width:0%"></div></div>
+            </div>
+            <div class="score-bar-row">
+              <div class="score-bar-label"><span>🚗 Traffic</span><span id="barTrafficPct">—</span></div>
+              <div class="score-bar-track"><div class="score-bar-fill" id="barTraffic" style="width:0%"></div></div>
+            </div>
+            <div class="score-bar-row">
+              <div class="score-bar-label"><span>📅 Holiday Risk</span><span id="barHolidayPct">—</span></div>
+              <div class="score-bar-track"><div class="score-bar-fill" id="barHoliday" style="width:0%"></div></div>
+            </div>
+            <div class="score-bar-row" style="margin-bottom:0">
+              <div class="score-bar-label"><span>🌿 Season Fit</span><span id="barSeasonPct">—</span></div>
+              <div class="score-bar-track"><div class="score-bar-fill" id="barSeason" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div><!-- /safety meter -->
+
+        <!-- Live Alerts — populated by renderHolidayAlerts() in js/main.js
+             Data source: Abstract Holiday API via fetchHolidays() in js/api.js -->
+        <div class="card loading-panel">
+          <div class="card-title"><span class="dot" style="background:var(--danger)"></span>Live Alerts</div>
+          <div id="holidayAlerts"><div class="loading-spinner">Checking holidays…</div></div>
+        </div>
+
+      </div><!-- /left column -->
+
+      <!-- RIGHT: Weather + Calendar -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Weather Snapshot — populated by renderWeatherPanel() in js/main.js
+             Data source: OpenWeatherMap API via fetchCurrentWeather() in js/api.js -->
+        <div class="card loading-panel">
+          <div class="card-title">
+            <span class="dot" style="background:var(--warn)"></span>Weather —
+            <span id="wCity" style="text-transform:none;color:var(--text)">…</span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:4px">
+            <span id="wIcon" style="font-size:48px">—</span>
+            <div>
+              <span id="wTemp" style="font-size:64px;font-weight:800;line-height:1">—</span>
+              <div id="wDesc"      style="font-size:15px;color:var(--muted);text-transform:capitalize">—</div>
+              <div id="wFeelsLike" style="font-size:13px;color:var(--muted)">—</div>
+            </div>
+          </div>
+          <div class="weather-grid" style="grid-template-columns:repeat(3,1fr)">
+            <div class="weather-stat"><div class="weather-stat-label">Humidity</div>   <div class="weather-stat-val" id="wHumidity">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Wind</div>        <div class="weather-stat-val" id="wWind">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">UV Index</div>   <div class="weather-stat-val" id="wUV">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Visibility</div> <div class="weather-stat-val" id="wVisibility">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Sunrise</div>    <div class="weather-stat-val" id="wSunrise">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Sunset</div>     <div class="weather-stat-val" id="wSunset">—</div></div>
+          </div>
+        </div><!-- /weather -->
+
+        <!-- Trip Calendar — built by buildCalendar() in js/main.js
+             Holidays from Abstract API, trip dates from form inputs -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Trip Calendar</div>
+          <div id="calendarGrid"><div class="loading-spinner">Loading…</div></div>
+        </div>
+
+      </div><!-- /right column -->
+    </div><!-- /grid-main -->
+
+    <!-- 7-Day Forecast Strip — built by renderForecastCards() in js/main.js
+         Data source: OpenWeatherMap 5-day forecast API via fetchForecast() in js/api.js -->
+    <div class="section-header">7-Day Forecast</div>
+    <div class="forecast-strip card" id="forecastCards" style="padding:18px">
+      <div class="loading-spinner" style="grid-column:1/-1">Loading forecast…</div>
+    </div>
+
+  </section><!-- /tab-dashboard -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 2 — TRAFFIC
+       Live route stats + alternate routes + road alerts + Leaflet map
+       Route data from OpenRouteService via fetchRoute() in js/api.js
+       Map rendered by initMap() + drawRoute() in js/api.js
+       Alerts built by renderRoadAlerts() in js/main.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-traffic">
+    <div class="grid-main" style="margin-top:24px">
+
+      <!-- LEFT: Stats + Routes + Alerts -->
+      <div style="display:flex;flex-direction:column;gap:20px">
+
+        <!-- Live route stats — values set by renderTrafficPanel() in js/main.js -->
+        <div class="card loading-panel">
+          <div class="card-title">
+            <span class="dot" style="background:var(--danger)"></span>Live Route —
+            <!-- tRouteLabel shows "Origin → Destination" set in main.js -->
+            <span id="tRouteLabel" style="text-transform:none;color:var(--muted);font-weight:400;margin-left:4px">loading…</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+            <div class="weather-stat"><div class="weather-stat-label">Distance</div>    <div class="weather-stat-val" id="tDistance">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Normal Time</div> <div class="weather-stat-val" id="tDuration">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">With Traffic</div><div class="weather-stat-val" id="tTraffic">—</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+            <div style="font-size:14px;color:var(--muted)">Traffic level:</div>
+            <div id="tLevel" style="font-size:18px;font-weight:700">—</div>
+            <div style="font-size:13px;color:var(--muted);margin-left:8px">Extra delay: <strong id="tDelay">—</strong></div>
+          </div>
+          <!-- Static departure guide (always useful regardless of API) -->
+          <div class="card-title">Best Departure Times</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div style="flex:1;min-width:110px;background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.25);border-radius:12px;padding:14px;text-align:center">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Best</div>
+              <div style="font-size:22px;font-weight:700;color:var(--success)">5:00 AM</div>
+              <div style="font-size:11px;color:var(--muted)">Light traffic</div>
+            </div>
+            <div style="flex:1;min-width:110px;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.2);border-radius:12px;padding:14px;text-align:center">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Okay</div>
+              <div style="font-size:22px;font-weight:700;color:var(--warn)">10:00 AM</div>
+              <div style="font-size:11px;color:var(--muted)">Moderate</div>
+            </div>
+            <div style="flex:1;min-width:110px;background:rgba(255,95,109,.08);border:1px solid rgba(255,95,109,.2);border-radius:12px;padding:14px;text-align:center">
+              <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Avoid</div>
+              <div style="font-size:22px;font-weight:700;color:var(--danger)">6:00 PM</div>
+              <div style="font-size:11px;color:var(--muted)">Peak hours</div>
+            </div>
+          </div>
+        </div><!-- /live stats -->
+
+        <!-- Alternate Routes — populated by renderAlternateRoutes() in js/main.js
+             Uses ORS route data + adds train/flight fallback links -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Alternate Routes</div>
+          <div id="alternateRoutes">
+            <div class="loading-spinner">Loading routes from OpenRouteService…</div>
+          </div>
+        </div>
+
+        <!-- Road Alerts — built dynamically by renderRoadAlerts() in js/main.js
+             Composite from: ORS route data + OpenWeatherMap + holidays -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Road &amp; Journey Alerts</div>
+          <div id="roadAlerts">
+            <div class="loading-spinner">Analysing route…</div>
+          </div>
+        </div>
+
+      </div><!-- /left -->
+
+      <!-- RIGHT: Leaflet Map + Overlays + Legend -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- ── LEAFLET MAP ─────────────────────────────────────────────────
+             CRITICAL: height:360px must be set explicitly — Leaflet will
+             render a blank grey box if the container has zero height.
+             Map initialised by initMap() in js/api.js on DOMContentLoaded.
+             Route drawn by drawRoute() in js/api.js after fetchRoute().
+             Tiles: OpenStreetMap (free, no key needed).
+        ──────────────────────────────────────────────────────────────── -->
+        <div class="card" style="padding:0;overflow:hidden;border-radius:var(--r-lg)">
+          <div id="mapContainer" style="width:100%;height:360px;border-radius:var(--r-lg)"></div>
+        </div>
+
+        <!-- Map weather overlay buttons — call addWeatherLayer() in js/api.js
+             Layers use OpenWeatherMap tile endpoint (requires OPENWEATHER_API_KEY) -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Weather Overlays</div>
+          <div class="map-controls">
+            <button class="btn btn-ghost btn-sm" onclick="addWeatherLayer('clouds_new')">☁️ Clouds</button>
+            <button class="btn btn-ghost btn-sm" onclick="addWeatherLayer('precipitation_new')">🌧 Rain</button>
+            <button class="btn btn-ghost btn-sm" onclick="addWeatherLayer('wind_new')">💨 Wind</button>
+            <button class="btn btn-ghost btn-sm" onclick="addWeatherLayer('temp_new')">🌡 Temp</button>
+            <!-- _weatherLayer and _map are module-level vars in js/api.js -->
+            <button class="btn btn-ghost btn-sm"
+              onclick="if(_weatherLayer&&_map){_map.removeLayer(_weatherLayer);_weatherLayer=null;}">
+              ✕ Clear
+            </button>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.6">
+            Map: <strong style="color:var(--text)">Leaflet.js + OpenStreetMap</strong> — free, no key needed.<br>
+            Route: <strong style="color:var(--text)">OpenRouteService</strong>. Overlays: OpenWeatherMap.
+          </div>
+        </div>
+
+        <!-- Colour legend for the route polyline -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Route Colour Guide</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div style="display:flex;align-items:center;gap:10px"><span style="display:inline-block;width:32px;height:6px;border-radius:3px;background:#00e5b0"></span>Light — free flowing</div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="display:inline-block;width:32px;height:6px;border-radius:3px;background:#ffb347"></span>Moderate — minor slowdown</div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="display:inline-block;width:32px;height:6px;border-radius:3px;background:#ff5f6d"></span>Heavy — significant delay</div>
+            <div style="display:flex;align-items:center;gap:10px"><span style="display:inline-block;width:32px;height:6px;border-radius:3px;background:#cc0000"></span>Severe — avoid if possible</div>
+          </div>
+        </div>
+
+      </div><!-- /right -->
+    </div>
+  </section><!-- /tab-traffic -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 3 — WEATHER
+       Full current conditions + 7-day forecast + travel score + season guide
+       Data: OpenWeatherMap via fetchCurrentWeather() + fetchForecast() in js/api.js
+       Rendered by mirrorWeatherTab() in js/main.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-weather">
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:20px">
+
+      <div class="grid-2">
+
+        <!-- Full weather conditions — mirrored from dashboard data by mirrorWeatherTab() -->
+        <div class="card loading-panel">
+          <div class="card-title">
+            <span class="dot" style="background:var(--accent)"></span>Current Conditions —
+            <span id="wCity2" style="text-transform:none;color:var(--text)"></span>
+          </div>
+          <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+            <span id="wIcon2" style="font-size:60px">—</span>
+            <div>
+              <div style="display:flex;align-items:baseline">
+                <span id="wTemp2" style="font-size:64px;font-weight:800;line-height:1">—</span>
+                <span style="font-size:28px;color:var(--muted)">°C</span>
+              </div>
+              <div id="wDesc2" style="font-size:16px;color:var(--muted);text-transform:capitalize;margin-top:4px">—</div>
+            </div>
+          </div>
+          <div class="weather-grid">
+            <div class="weather-stat"><div class="weather-stat-label">Feels like</div>    <div class="weather-stat-val" id="wFeel2">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Humidity</div>      <div class="weather-stat-val" id="wHum2">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Wind</div>          <div class="weather-stat-val" id="wWind2">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">UV Index</div>     <div class="weather-stat-val" id="wUV2">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Visibility</div>   <div class="weather-stat-val" id="wVis2">—</div></div>
+            <div class="weather-stat"><div class="weather-stat-label">Sunrise / Sunset</div><div class="weather-stat-val" id="wSun2">—</div></div>
+          </div>
+        </div>
+
+        <!-- Travel Weather Score — computed by calculateSafetyScore() in js/api.js -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Travel Weather Score</div>
+          <div style="padding:20px 0;text-align:center">
+            <div id="travelScore2"      style="font-size:56px;font-weight:900;line-height:1">—</div>
+            <div style="font-size:16px;color:var(--muted);margin-top:6px">/100 · <span id="travelScoreLabel2">Calculating…</span></div>
+          </div>
+          <!-- weatherAlertBox content set by mirrorWeatherTab() in js/main.js -->
+          <div id="weatherAlertBox">
+            <div class="alert alert-info"><span class="alert-icon">⏳</span><div>Loading weather assessment…</div></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 7-Day Forecast — mirrored from dashboard by mirrorWeatherTab() in js/main.js -->
+      <div class="card loading-panel">
+        <div class="card-title"><span class="dot" style="background:var(--warn)"></span>7-Day Forecast</div>
+        <div class="forecast-strip" id="forecastCards2">
+          <div class="loading-spinner" style="grid-column:1/-1">Loading…</div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+
+        <!-- Season Guide — static educational content -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Season Guide (India)</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(0,229,176,.08);border:1px solid rgba(0,229,176,.2);border-radius:10px">
+              <div><div style="font-weight:700">Nov – Feb ✅</div><div style="font-size:12px;color:var(--muted)">Ideal · Cool &amp; dry</div></div>
+              <span class="chip chip-green">BEST</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,208,96,.08);border-radius:10px">
+              <div><div style="font-weight:700">Mar – May ⚠️</div><div style="font-size:12px;color:var(--muted)">Hot, manageable</div></div>
+              <span class="chip chip-yellow">GOOD</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,95,109,.08);border-radius:10px">
+              <div><div style="font-weight:700">Jun – Sep 🌧️</div><div style="font-size:12px;color:var(--muted)">Monsoon · Many beaches closed</div></div>
+              <span class="chip chip-red">AVOID</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--surface);border-radius:10px">
+              <div><div style="font-weight:700">Oct 🌤️</div><div style="font-size:12px;color:var(--muted)">Shoulder · Good prices</div></div>
+              <span class="chip chip-blue">OKAY</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Packing Preview — mirrored from Packing tab by mirrorWeatherTab() in js/main.js -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--gold)"></span>Packing Preview</div>
+          <div id="packingPreview"><div class="loading-spinner">Generating from weather…</div></div>
+        </div>
+
+      </div>
+    </div>
+  </section><!-- /tab-weather -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 4 — HOLIDAYS
+       Public holidays list + trip overlap impact + calendar + alert prefs
+       Data: Abstract API via fetchHolidays() in js/api.js
+             Offline fallback (India) in getOfflineHolidays() in js/api.js
+       Rendered by mirrorHolidayTab() in js/main.js
+       Alert prefs saved to Firebase via saveAlertPrefs() in js/firebase.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-holidays">
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:20px">
+
+      <div class="grid-2">
+
+        <!-- Holiday list — populated by mirrorHolidayTab() in js/main.js
+             If Abstract API key is missing, shows offline Indian holidays
+             with a clear message pointing to config.js -->
+        <div class="card">
+          <div class="card-title">
+            <span class="dot" style="background:var(--danger)"></span>Public Holidays (via Abstract API)
+            <span id="holidaySourceBadge" style="margin-left:auto;font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400"></span>
+          </div>
+          <div id="holidayList">
+            <div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">
+              Loading holidays… Add <strong style="color:var(--accent)">ABSTRACT_HOLIDAY_API_KEY</strong>
+              to <code style="font-size:11px;background:rgba(79,168,255,.12);padding:1px 6px;border-radius:4px">js/config.js</code>
+              for live data, or built-in Indian holidays will be shown.
+            </div>
+          </div>
+        </div>
+
+        <!-- Impact analysis + price guide -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Impact on Your Trip</div>
+          <!-- holidayImpact populated by mirrorHolidayTab() in js/main.js -->
+          <div id="holidayImpact">
+            <div class="alert alert-info"><span class="alert-icon">ℹ️</span><div>Holidays overlapping your dates will appear here.</div></div>
+          </div>
+          <hr class="divider">
+          <div class="card-title">Price Impact Guide</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)"><span>National Holiday (long weekend)</span><span style="color:var(--danger)">+40–80% hotels</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)"><span>State / Regional Holiday</span><span style="color:var(--warn)">+15–30% hotels</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--border)"><span>Exam season</span><span style="color:var(--success)">−20% (fewer crowds)</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0"><span>Off-season weekday</span><span style="color:var(--success)">Best rates 💰</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Holiday Calendar clone — built by mirrorHolidayTab() in js/main.js -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent)"></span>Holiday Calendar</div>
+        <div id="calendarGridHolidays"></div>
+      </div>
+
+      <!-- Alert Preferences — saveAlerts() in js/main.js calls saveAlertPrefs() in js/firebase.js -->
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Alert Preferences — Saved to Firebase</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px">
+          <div class="form-group" style="margin:0">
+            <label>Traffic alert when</label>
+            <select id="trafficThreshold">
+              <option>Heavy (Red)</option>
+              <option>Moderate or worse</option>
+              <option>Any change</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Notify before departure</label>
+            <select id="notifyHoursBefore">
+              <option>1 hour</option><option>3 hours</option>
+              <option selected>6 hours</option><option>12 hours</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Weather alert threshold</label>
+            <select id="weatherThreshold">
+              <option>Any rain</option><option>Heavy rain</option>
+              <option selected>Storms only</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Hotel price alert above (₹/night)</label>
+            <input type="number" id="priceLimit" placeholder="e.g. 5000">
+          </div>
+        </div>
+        <!-- saveAlerts() defined in js/main.js -->
+        <button class="btn btn-primary" style="margin-top:14px" onclick="saveAlerts()">💾 Save to Firebase</button>
+      </div>
+
+    </div>
+  </section><!-- /tab-holidays -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 5 — BUDGET
+       User-defined total budget + editable expense rows + hotel comparison
+       + doughnut chart + per-person/day stats
+       Budget engine lives in the <script> block at the bottom of this file.
+       Hotel prices: Makcorps API (key: MAKCORPS_API_KEY in js/config.js)
+       Holiday warning: uses state.holidays from js/main.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-budget">
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:20px">
+
+      <!-- Hotel API info banner -->
+      <div class="alert alert-info" style="margin:0">
+        <span class="alert-icon">🏨</span>
+        <div>
+          <strong>Hotel data: Makcorps Hotel Price API</strong> — fetches live prices from Booking.com, Expedia &amp; Agoda.<br>
+          Add <code style="font-size:11px;background:rgba(79,168,255,.15);padding:1px 6px;border-radius:4px">MAKCORPS_API_KEY</code>
+          to <code style="font-size:11px;background:rgba(79,168,255,.15);padding:1px 6px;border-radius:4px">js/config.js</code>.
+          Free 30-day trial at <strong>makcorps.com</strong> (no credit card).
+        </div>
+      </div>
+
+      <!-- Top 3 stat cards — all computed by recalcBudget() in the budget <script> below -->
+      <div class="grid-3">
+
+        <div class="card" style="text-align:center">
+          <div class="card-title" style="justify-content:center">
+            <span class="dot" style="background:var(--accent)"></span>Your Total Budget
+          </div>
+          <!-- Editable number input — oninput calls recalcBudget() -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:2px;margin-bottom:4px">
+            <span style="font-size:26px;font-weight:800;color:var(--muted)">₹</span>
+            <input type="number" id="totalBudgetInput" min="0" step="500" placeholder="0"
+              style="font-size:34px;font-weight:800;width:130px;background:transparent;border:none;
+                     border-bottom:2px solid var(--accent);color:var(--text);text-align:center;
+                     outline:none;font-family:var(--font);padding:2px 0"
+              oninput="recalcBudget()" title="Type your total budget here">
+          </div>
+          <div id="budgetMeta" style="font-size:13px;color:var(--muted)">— people · — days</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;opacity:.7">← tap to edit</div>
+        </div>
+
+        <div class="card" style="text-align:center">
+          <div class="card-title" style="justify-content:center">
+            <span class="dot" style="background:var(--warn)"></span>Spent / Confirmed
+          </div>
+          <div id="budgetSpent"      style="font-size:34px;font-weight:800;color:var(--warn)">₹0</div>
+          <div id="budgetSpentLabel" style="font-size:13px;color:var(--muted);margin-top:4px">No items confirmed yet</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;opacity:.7">from confirmed rows below</div>
+        </div>
+
+        <div class="card" style="text-align:center">
+          <div class="card-title" style="justify-content:center">
+            <span class="dot" style="background:var(--success)"></span>Remaining
+          </div>
+          <div id="budgetRemaining"    style="font-size:34px;font-weight:800;color:var(--success)">₹0</div>
+          <div id="budgetRemainingPct" style="font-size:13px;color:var(--muted);margin-top:4px">100% of budget</div>
+          <div id="budgetOverAlert"    style="display:none;font-size:11px;color:var(--danger);margin-top:4px;font-weight:600">⚠ Over budget!</div>
+        </div>
+
+      </div><!-- /grid-3 -->
+
+      <!-- Dual progress bar — confirmed (green) + pending estimates (blue) -->
+      <div class="card" style="padding:14px 22px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px">
+          <span style="color:var(--muted)">Budget consumed (confirmed + estimated)</span>
+          <div style="display:flex;gap:16px;font-size:12px">
+            <span>Confirmed: <strong id="budgetConfirmedPct" style="color:var(--success)">0%</strong></span>
+            <span>Estimated: <strong id="budgetEstPct" style="color:var(--muted)">0%</strong></span>
+            <span>Total: <strong id="budgetBarPct">0%</strong></span>
+          </div>
+        </div>
+        <div style="height:12px;border-radius:6px;background:var(--surface);overflow:hidden;display:flex">
+          <div id="budgetConfirmedBar" style="height:100%;background:var(--success);transition:width .5s;width:0%"></div>
+          <div id="budgetEstBar"       style="height:100%;background:rgba(79,168,255,.35);transition:width .5s;width:0%"></div>
+        </div>
+        <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--muted)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--success)"></span>Confirmed spend</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(79,168,255,.35)"></span>Pending estimates</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+
+        <!-- Expense Breakdown — rows rendered by renderBudgetRows() in budget <script> -->
+        <div class="card">
+          <div class="card-title">
+            <span class="dot" style="background:var(--accent)"></span>Expense Breakdown
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button onclick="addBudgetRow()"
+                style="background:transparent;border:1px solid var(--border);color:var(--muted);
+                       border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:var(--font)">
+                + Add expense
+              </button>
+              <button onclick="resetBudget()"
+                style="background:transparent;border:1px solid var(--border);color:var(--muted);
+                       border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:var(--font)"
+                title="Reset all estimates from current trip dates and traveler count">
+                ↺ Reset
+              </button>
+            </div>
+          </div>
+          <!-- Column header row -->
+          <div style="display:grid;grid-template-columns:1fr 100px 120px 24px;gap:8px;
+                      font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;
+                      letter-spacing:.5px;padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
+            <span>Category</span><span>Estimated</span><span>Actual / Status</span><span></span>
+          </div>
+          <!-- Budget rows injected here by renderBudgetRows() -->
+          <div id="budgetRows"></div>
+          <!-- Summary footer totals -->
+          <div style="margin-top:12px;padding-top:12px;border-top:2px solid var(--border)">
+            <div style="display:grid;grid-template-columns:1fr auto auto;gap:12px;font-size:13px;font-weight:600">
+              <span>Total estimated</span>
+              <span id="budgetEstTotal" style="color:var(--muted)">₹0</span>
+              <span id="budgetActTotal" style="color:var(--accent)">₹0 budget</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto auto;gap:12px;font-size:13px;margin-top:6px;color:var(--muted)">
+              <span>Confirmed spend</span>
+              <span id="budgetConfirmedTotal" style="color:var(--success)">₹0</span>
+              <span id="budgetSavedAmount"    style="color:var(--success)">₹0 saved</span>
+            </div>
+          </div>
+        </div><!-- /expense breakdown -->
+
+        <!-- RIGHT: Hotels + Chart + Stats -->
+        <div style="display:flex;flex-direction:column;gap:20px">
+
+          <!-- Hotel Comparison — rendered by renderHotelRows() in budget <script>
+               "Fetch live prices" calls fetchHotelPrices() in budget <script>
+               which calls Makcorps API (key: MAKCORPS_API_KEY in js/config.js) -->
+          <div class="card">
+            <div class="card-title">
+              <span class="dot" style="background:var(--gold)"></span>Hotel Prices
+              <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+                <div id="hotelLoadingBadge" style="font-size:11px;color:var(--muted);display:none">⏳ Fetching…</div>
+                <button onclick="fetchHotelPrices()"
+                  style="background:transparent;border:1px solid var(--border);color:var(--accent);
+                         border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:var(--font)">
+                  🔄 Fetch live prices
+                </button>
+                <button onclick="addHotelRow()"
+                  style="background:transparent;border:1px solid var(--border);color:var(--muted);
+                         border-radius:20px;padding:3px 12px;font-size:11px;cursor:pointer;font-family:var(--font)">
+                  + Add
+                </button>
+              </div>
+            </div>
+            <!-- Hotel rows injected by renderHotelRows() in budget <script> -->
+            <div id="hotelRows"></div>
+            <div class="alert alert-warn" style="margin-top:10px">
+              <span class="alert-icon" style="font-size:14px">💡</span>
+              <div style="font-size:12px">
+                Hotel prices are 30–60% higher on national holiday weekends.
+                <!-- holidayHotelWarning text set by checkHolidayHotelWarning() in budget <script> -->
+                <span id="holidayHotelWarning"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Doughnut chart — drawn by drawBudgetChart() in budget <script> using Chart.js -->
+          <div class="card">
+            <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>Spend Distribution</div>
+            <canvas id="budgetChart" height="150"></canvas>
+            <div id="chartEmpty" style="text-align:center;padding:20px;color:var(--muted);font-size:13px;display:none">
+              Add expenses above to see the chart
+            </div>
+          </div>
+
+          <!-- Per-person / per-day / buffer / health stats — set by recalcBudget() -->
+          <div class="card">
+            <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>Cost Breakdown</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="background:var(--surface);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Per person</div>
+                <div id="costPerPerson" style="font-size:22px;font-weight:700">₹0</div>
+              </div>
+              <div style="background:var(--surface);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Per day</div>
+                <div id="costPerDay" style="font-size:22px;font-weight:700">₹0</div>
+              </div>
+              <div style="background:var(--surface);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Unplanned buffer</div>
+                <div id="costBuffer" style="font-size:22px;font-weight:700;color:var(--success)">₹0</div>
+              </div>
+              <div style="background:var(--surface);border-radius:10px;padding:12px;text-align:center">
+                <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Budget health</div>
+                <div id="budgetHealth" style="font-size:18px;font-weight:700">—</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /right -->
+      </div><!-- /grid-2 -->
+    </div>
+  </section><!-- /tab-budget -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 6 — PACKING
+       Weather-smart auto-generated list + custom items + document checklist
+       List built by renderPackingChecklist() in js/main.js
+       Items toggle via toggleCheckItem() in js/main.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-checklist">
+    <div style="margin-top:24px">
+      <div class="grid-2">
+
+        <!-- Smart packing list — populated by renderPackingChecklist() in js/main.js
+             Items are derived from the 7-day forecast temperatures and rain chance -->
+        <div class="card">
+          <div class="card-title">
+            <span class="dot" style="background:var(--accent)"></span>Smart Packing List
+            <!-- packProgress counter updated by updatePackCount() in js/main.js -->
+            <span id="packProgress" style="margin-left:auto;font-size:12px;color:var(--muted);text-transform:none;letter-spacing:0"></span>
+          </div>
+          <div id="packingList"><div class="loading-spinner">Generating from weather…</div></div>
+          <!-- renderPackingChecklist() is in js/main.js -->
+          <button class="btn btn-ghost" style="margin-top:14px;width:100%"
+            onclick="renderPackingChecklist(state.forecast)">
+            🔄 Refresh from Weather
+          </button>
+        </div>
+
+        <!-- Custom items + document checklist -->
+        <div class="card">
+          <div class="card-title"><span class="dot" style="background:var(--warn)"></span>Add Custom Item</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <input type="text" id="customItem" placeholder="e.g. Beach umbrella, First-aid kit…">
+            <!-- addCustomItem() defined in js/main.js -->
+            <button class="btn btn-primary" onclick="addCustomItem()">+ Add to List</button>
+          </div>
+          <hr class="divider">
+          <div class="card-title">Documents Checklist</div>
+          <!-- toggleCheckItem() defined in js/main.js -->
+          <div>
+            <div class="checklist-item" id="doc1" onclick="toggleCheckItem('doc1')"><div class="check-box"></div><span class="check-text">📄 Aadhar / Passport copy</span></div>
+            <div class="checklist-item" id="doc2" onclick="toggleCheckItem('doc2')"><div class="check-box"></div><span class="check-text">🚗 Driving licence</span></div>
+            <div class="checklist-item" id="doc3" onclick="toggleCheckItem('doc3')"><div class="check-box"></div><span class="check-text">🏨 Hotel booking confirmation</span></div>
+            <div class="checklist-item" id="doc4" onclick="toggleCheckItem('doc4')"><div class="check-box"></div><span class="check-text">🚑 Travel insurance</span></div>
+            <div class="checklist-item" id="doc5" onclick="toggleCheckItem('doc5')"><div class="check-box"></div><span class="check-text">💊 Doctor prescriptions</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section><!-- /tab-checklist -->
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       TAB 7 — HISTORY (Firebase Firestore)
+       All trips saved to the "trips" collection in Firestore.
+       Rendered by renderTripHistory() in js/firebase.js
+       Actions: reloadTrip(), markDone(), cancelTrip(), removeTrip()
+                — all defined in js/firebase.js
+  ═══════════════════════════════════════════════════════════════════════ -->
+  <section class="tab-section" id="tab-history">
+    <div style="margin-top:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2>Trip History</h2>
+          <p style="color:var(--muted);font-size:14px;margin-top:4px">
+            Saved to Firebase Firestore — accessible from any device
+          </p>
+        </div>
+        <!-- saveCurrentTrip() defined in js/main.js, calls saveTrip() in js/firebase.js -->
+        <button class="btn btn-primary" onclick="saveCurrentTrip()">💾 Save Current Trip</button>
+      </div>
+      <!-- tripHistoryList populated by renderTripHistory() in js/firebase.js -->
+      <div id="tripHistoryList"><div class="loading-spinner">Loading from Firebase…</div></div>
+    </div>
+  </section><!-- /tab-history -->
+
+
+</div><!-- /container -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MOBILE BOTTOM NAVIGATION (shown only on screens ≤640px via CSS)
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="mobile-nav">
+  <button class="mobile-nav-btn active" onclick="showTab('dashboard');setMobileActive(this)"><span class="mn-icon">🎯</span>Dash</button>
+  <button class="mobile-nav-btn"        onclick="showTab('traffic');setMobileActive(this)"><span class="mn-icon">🚗</span>Traffic</button>
+  <button class="mobile-nav-btn"        onclick="showTab('weather');setMobileActive(this)"><span class="mn-icon">🌤</span>Weather</button>
+  <button class="mobile-nav-btn"        onclick="showTab('holidays');setMobileActive(this)"><span class="mn-icon">📅</span>Holidays</button>
+  <button class="mobile-nav-btn"        onclick="showTab('history');setMobileActive(this)"><span class="mn-icon">🗂</span>History</button>
+</div>
+
+<!-- Floating Action Button — returns to Dashboard from any tab -->
+<button class="fab" onclick="showTab('dashboard')" title="Back to Dashboard">🎯</button>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SCRIPTS — ORDER IS CRITICAL
+     Load order must be exactly:
+       1. Leaflet.js     (map library — sets window.L global)
+       2. Chart.js       (budget chart — sets window.Chart global)
+       3. config.js      (sets window.CONFIG — must load before api/firebase/main)
+       4. api.js         (uses CONFIG — weather, holidays, routing, map, hotels)
+       5. firebase.js    (uses CONFIG.FIREBASE — trip history, alert prefs)
+       6. main.js        (uses CONFIG + api.js + firebase.js — wires everything)
+       7. Budget <script> (uses CONFIG, state from main.js, Chart from Chart.js)
+════════════════════════════════════════════════════════════════════════════ -->
+
+<!-- STEP 1 — Leaflet.js  (map library — FREE, no API key needed)
+     Source  : unpkg.com   Version : 1.9.4
+     Provides: L.map(), L.tileLayer(), L.geoJSON(), L.marker(), L.layerGroup()
+     Used in : initMap(), drawRoute(), addWeatherLayer() in js/api.js          -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLI="
+        crossorigin=""></script>
+
+<!-- STEP 2 — Chart.js  (budget doughnut chart)
+     Source  : cdnjs.cloudflare.com   Version : 4.4.1
+     Provides: window.Chart constructor
+     Used in : drawBudgetChart() in the Budget <script> block below            -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<!-- STEP 3 — js/config.js  ★ YOUR API KEYS GO HERE ★
+     Defines : window.CONFIG object with all API keys and defaults
+     Keys    : OPENWEATHER_API_KEY, ABSTRACT_HOLIDAY_API_KEY,
+               ORS_API_KEY, MAKCORPS_API_KEY, FIREBASE: { ... }
+     Edit    : open js/config.js and replace every YOUR_..._HERE value        -->
+<script src="js/config.js"></script>
+
+<!-- STEP 4 — js/api.js  (API Hub — all external service calls)
+     Depends : CONFIG (from config.js), Leaflet L (from step 1)
+     Provides: fetchCurrentWeather(), fetchForecast(), fetchUVIndex()
+               fetchHolidays(), findHolidayOverlaps(), getOfflineHolidays()
+               geocodeCity(), fetchRoute(), buildEstimatedRoute()
+               initMap(), drawRoute(), addWeatherLayer()
+               fetchHotelPrices(), buildPlaceholderHotels()
+               calculateSafetyScore()
+     APIs    : OpenWeatherMap, Abstract Holidays, Nominatim, OpenRouteService,
+               OpenStreetMap tiles, Makcorps Hotels                            -->
+<script src="js/api.js"></script>
+
+<!-- STEP 5 — js/firebase.js  (Firestore database layer)
+     Depends : CONFIG.FIREBASE (from config.js), firebase SDK (loaded in <head>)
+     Provides: initFirebase(), saveTrip(), loadTripHistory(), deleteTrip()
+               updateTripStatus(), saveAlertPrefs(), loadAlertPrefs()
+               renderTripHistory(), reloadTrip(), markDone(), cancelTrip()
+               removeTrip(), fmtDate(), fmtTimestamp(), sbClass()
+     Database: Firebase Firestore — collections: trips/, alerts/               -->
+<script src="js/firebase.js"></script>
+
+<!-- STEP 6 — js/main.js  (App orchestrator — wires all APIs to the UI)
+     Depends : CONFIG, api.js functions, firebase.js functions
+     Provides: refreshDashboard() — calls all APIs in parallel and renders all panels
+               showTab()          — tab navigation + map invalidate fix
+               renderSafetyMeter(), renderWeatherPanel(), renderForecastCards()
+               renderTrafficPanel(), renderAlternateRoutes(), renderRoadAlerts()
+               renderHolidayAlerts(), mirrorWeatherTab(), mirrorHolidayTab()
+               buildCalendar(), renderPackingChecklist(), toggleCheckItem()
+               saveCurrentTrip(), saveAlerts(), renderTravelScore()
+               showLoading(), showToast(), setEl(), setDefaultDates()          -->
+<script src="js/main.js"></script>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     STEP 7 — BUDGET ENGINE (inline <script>)
+     Why inline: the budget logic is self-contained and tightly coupled
+     to the Budget tab HTML above. Keeping it here makes it easy to read
+     the HTML and the logic together without switching files.
+
+     Depends on:
+       - CONFIG.MAKCORPS_API_KEY  (from js/config.js)
+       - state.holidays           (from js/main.js — for holiday warning)
+       - findHolidayOverlaps()    (from js/api.js)
+       - showToast()              (from js/main.js)
+       - window.Chart             (from Chart.js CDN above)
+
+     Functions provided by this block:
+       getTripParams()            reads current trip setup form values
+       initBudget()               seeds expense rows from trip params
+       renderBudgetRows()         injects editable rows into #budgetRows
+       renderHotelRows()          injects editable hotel cards into #hotelRows
+       fetchHotelPrices()         calls Makcorps API → updates hotelRows
+       useHotelInBudget()         copies hotel price into the Hotel expense row
+       recalcBudget()             recalculates all totals + redraws chart
+       drawBudgetChart()          renders/updates the Chart.js doughnut
+       markBooked() / unmarkBooked() / removeBudgetRow() / addBudgetRow()
+       resetBudget() / setHotelBest() / removeHotelRow() / addHotelRow()
+       checkHolidayHotelWarning() shows surge pricing warning if holiday overlaps
+       showTab hook               intercepts showTab() to init budget on first open
+════════════════════════════════════════════════════════════════════════════ -->
+<script>
+
+// ── Expense category definitions (formulas — no hardcoded values) ─────────
+// estFn(days, people) returns the estimated cost for that category
+const EXPENSE_DEFS = [
+  { emoji:"🏨", label:"Hotel",           estFn:(d,p) => d * 1800 * Math.ceil(p/2) },
+  { emoji:"⛽", label:"Fuel",            estFn:(d,p) => 4500                       },
+  { emoji:"🍽️", label:"Food & Dining",   estFn:(d,p) => d * p * 350               },
+  { emoji:"🏄", label:"Activities",      estFn:(d,p) => p * 800                   },
+  { emoji:"🛒", label:"Shopping",        estFn:(d,p) => p * 600                   },
+  { emoji:"🚖", label:"Local Transport", estFn:(d,p) => d * 350                   },
+  { emoji:"🎟️", label:"Entry tickets",   estFn:(d,p) => p * 300                   },
+];
+
+// ── Makcorps city code map (add more cities as needed) ────────────────────
+const CITY_CODES = {
+  goa:"GOI", mumbai:"BOM", delhi:"DEL", bangalore:"BLR", hyderabad:"HYD",
+  chennai:"MAA", kolkata:"CCU", jaipur:"JAI", manali:"KUU", shimla:"SLV",
+  "new delhi":"DEL", pune:"PNQ", ahmedabad:"AMD", kochi:"COK", agra:"AGR",
+  udaipur:"UDR", varanasi:"VNS", mysore:"MYQ", pondicherry:"PNY"
+};
+
+// ── Module-level state ────────────────────────────────────────────────────
+let budgetRows  = [];   // array of expense row objects
+let hotelRows   = [];   // array of hotel option objects
+let budgetChart = null; // Chart.js instance
+let _budgetInit = false; // guard: prevent re-init on every tab switch
+
+// ── Read current trip setup form values ───────────────────────────────────
+function getTripParams() {
+  const travelers = document.getElementById("travelers")?.value || "Family (4)";
+  const pCount = travelers.includes("Solo") ? 1
+               : travelers.includes("2")    ? 2
+               : travelers.includes("6")    ? 6 : 4;
+  const start  = document.getElementById("startDate")?.value || "";
+  const end    = document.getElementById("endDate")?.value   || "";
+  const days   = (start && end)
+    ? Math.max(1, Math.round((new Date(end) - new Date(start)) / 86400000) + 1) : 5;
+  const nights = Math.max(1, days - 1);
+  const dest   = (document.getElementById("destination")?.value || "Goa").split(",")[0].trim();
+  return { pCount, days, nights, start, end, dest };
+}
+
+// ── Initialise budget (called on first tab open or when trip params change) ─
+function initBudget(force = false) {
+  if (_budgetInit && !force) { recalcBudget(); return; }
+  _budgetInit = true;
+
+  const { pCount, days, dest } = getTripParams();
+
+  // Auto-suggest total budget (round to nearest ₹500)
+  const inp = document.getElementById("totalBudgetInput");
+  if (inp && !inp.value) {
+    inp.value = Math.round(pCount * days * 1400 / 500) * 500;
+  }
+
+  setEl("budgetMeta", `${pCount} ${pCount === 1 ? "person" : "people"} · ${days} days`);
+
+  // Build expense rows from EXPENSE_DEFS formulas
+  budgetRows = EXPENSE_DEFS.map(def => ({
+    emoji:  def.emoji,
+    label:  def.label,
+    est:    Math.round(def.estFn(days, pCount) / 100) * 100,
+    actual: 0,
+    booked: false
+  }));
+
+  // Build placeholder hotel rows named from destination
+  hotelRows = [
+    { name:`${dest} Budget (3★)`,   detail:"City area · AC · Breakfast",      pricePerNight:1200, best:false, source:"placeholder" },
+    { name:`${dest} Midrange (4★)`, detail:"Near attraction · Pool · Breakfast", pricePerNight:2000, best:true,  source:"placeholder" },
+    { name:`${dest} Premium (5★)`,  detail:"Resort · Infinity pool · Spa",    pricePerNight:7000, best:false, source:"placeholder" },
+  ];
+
+  renderBudgetRows();
+  renderHotelRows();
+  recalcBudget();
+  checkHolidayHotelWarning();
+}
+
+// ── Render editable expense rows into #budgetRows ─────────────────────────
+function renderBudgetRows() {
+  const container = document.getElementById("budgetRows");
+  if (!container) return;
+  container.innerHTML = budgetRows.map((row, i) => `
+    <div style="display:grid;grid-template-columns:1fr 100px 120px 24px;gap:8px;
+                padding:10px 0;border-bottom:1px solid var(--border);align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:15px;flex-shrink:0">${row.emoji}</span>
+        <input value="${row.label}"
+          style="background:transparent;border:none;border-bottom:1px solid transparent;
+                 color:var(--text);font-size:14px;font-family:var(--font);
+                 outline:none;width:100%;padding:1px 0;transition:border-color .2s"
+          onfocus="this.style.borderBottomColor='var(--accent)'"
+          onblur="this.style.borderBottomColor='transparent'"
+          oninput="budgetRows[${i}].label=this.value;recalcBudget()">
+      </div>
+      <div style="display:flex;align-items:center;gap:3px">
+        <span style="font-size:11px;color:var(--muted)">₹</span>
+        <input type="number" value="${row.est}" min="0" step="100"
+          style="background:transparent;border:none;border-bottom:1px solid var(--border);
+                 color:var(--muted);font-size:13px;font-family:var(--font);
+                 outline:none;width:76px;padding:1px 0;text-align:right"
+          oninput="budgetRows[${i}].est=Math.round(+this.value);recalcBudget()">
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        ${row.booked ? `
+          <span style="color:var(--success);font-size:12px">₹</span>
+          <input type="number" value="${row.actual}" min="0" step="100"
+            style="background:transparent;border:none;border-bottom:1px solid var(--success);
+                   color:var(--success);font-size:13px;font-weight:600;font-family:var(--font);
+                   outline:none;width:66px;padding:1px 0;text-align:right"
+            oninput="budgetRows[${i}].actual=Math.round(+this.value);recalcBudget()">
+          <button onclick="unmarkBooked(${i})"
+            style="background:rgba(0,229,176,.12);border:none;border-radius:4px;
+                   color:var(--success);cursor:pointer;font-size:11px;padding:2px 5px"
+            title="Unmark as confirmed">✓</button>
+        ` : `
+          <button onclick="markBooked(${i})"
+            style="font-size:11px;padding:3px 10px;border-radius:20px;
+                   border:1px solid var(--border2);background:transparent;
+                   color:var(--muted);cursor:pointer;font-family:var(--font);
+                   white-space:nowrap;transition:all .15s"
+            onmouseover="this.style.borderColor='var(--success)';this.style.color='var(--success)'"
+            onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--muted)'">
+            Confirm
+          </button>
+        `}
+      </div>
+      <button onclick="removeBudgetRow(${i})"
+        style="background:transparent;border:none;color:var(--muted);cursor:pointer;
+               font-size:18px;padding:0;line-height:1;transition:color .15s"
+        onmouseover="this.style.color='var(--danger)'"
+        onmouseout="this.style.color='var(--muted)'"
+        title="Remove this expense">×</button>
+    </div>
+  `).join("") || `<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px">No expenses — click "+ Add expense"</div>`;
+}
+
+// ── Render hotel comparison cards into #hotelRows ─────────────────────────
+function renderHotelRows() {
+  const container = document.getElementById("hotelRows");
+  if (!container) return;
+  const { nights } = getTripParams();
+
+  container.innerHTML = hotelRows.map((h, i) => `
+    <div class="route-option ${h.best ? "recommended" : ""}"
+         style="margin-bottom:10px;flex-wrap:wrap;gap:8px;position:relative">
+      ${h.source === "api" ? `<span style="position:absolute;top:8px;right:8px;font-size:10px;
+        padding:1px 7px;border-radius:20px;background:rgba(0,229,176,.12);color:var(--success)">live</span>` : ""}
+      <div style="flex:1;min-width:130px">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <input value="${h.name}"
+            style="background:transparent;border:none;border-bottom:1px dashed transparent;
+                   color:var(--text);font-size:14px;font-weight:700;font-family:var(--font);
+                   outline:none;flex:1;min-width:100px;padding:1px 0;transition:border-color .2s"
+            onfocus="this.style.borderBottomColor='var(--accent)'"
+            onblur="this.style.borderBottomColor='transparent'"
+            oninput="hotelRows[${i}].name=this.value">
+          ${h.best ? `<span class="chip chip-green" style="flex-shrink:0;font-size:10px">Best Value</span>` : ""}
+        </div>
+        <input value="${h.detail}"
+          style="background:transparent;border:none;color:var(--muted);font-size:12px;
+                 font-family:var(--font);outline:none;width:100%;padding:1px 0;margin-top:2px"
+          oninput="hotelRows[${i}].detail=this.value">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          ₹${(h.pricePerNight * nights).toLocaleString("en-IN")} total · ${nights} nights
+          ${h.source === "api" ? ` · via ${h.ota || "OTA"}` : ""}
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <div style="text-align:right">
+          <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
+            <span style="font-size:12px;color:var(--muted)">₹</span>
+            <input type="number" value="${h.pricePerNight}" min="0" step="100"
+              style="background:transparent;border:none;
+                     border-bottom:1px solid ${h.pricePerNight > 5000 ? "var(--danger)" : h.pricePerNight > 2500 ? "var(--warn)" : "var(--success)"};
+                     color:${h.pricePerNight > 5000 ? "var(--danger)" : h.pricePerNight > 2500 ? "var(--warn)" : "var(--success)"};
+                     font-size:20px;font-weight:700;font-family:var(--font);
+                     outline:none;width:88px;text-align:right;padding:1px 0"
+              oninput="hotelRows[${i}].pricePerNight=+this.value;renderHotelRows()">
+            <span style="font-size:12px;color:var(--muted)">/n</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button onclick="setHotelBest(${i})"
+            style="background:transparent;border:1px solid var(--border);border-radius:6px;
+                   color:${h.best ? "var(--gold)" : "var(--muted)"};cursor:pointer;
+                   font-size:13px;padding:2px 7px;font-family:var(--font)"
+            title="${h.best ? "Remove best value" : "Mark as best value"}">
+            ${h.best ? "★" : "☆"}
+          </button>
+          <button onclick="useHotelInBudget(${i})"
+            style="background:transparent;border:1px solid var(--border);border-radius:6px;
+                   color:var(--muted);cursor:pointer;font-size:10px;padding:2px 5px;font-family:var(--font)"
+            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'"
+            title="Use this price in the expense breakdown above">
+            Use
+          </button>
+          <button onclick="removeHotelRow(${i})"
+            style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0"
+            onmouseover="this.style.color='var(--danger)'"
+            onmouseout="this.style.color='var(--muted)'">×</button>
+        </div>
+      </div>
+    </div>
+  `).join("") || `<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">No hotels — click "+ Add" or "Fetch live prices"</div>`;
+}
+
+// ── Fetch live hotel prices from Makcorps API ─────────────────────────────
+// Key: MAKCORPS_API_KEY in js/config.js → get free at makcorps.com
+async function fetchHotelPrices() {
+  const { dest, start, end, nights } = getTripParams();
+  const apiKey   = CONFIG.MAKCORPS_API_KEY;
+  const cityCode = CITY_CODES[dest.toLowerCase()];
+
+  if (!apiKey || apiKey.includes("YOUR_")) {
+    showToast("Add MAKCORPS_API_KEY to js/config.js for live prices", "info");
+    // Fall back: open Booking.com search in new tab
+    if (start && end) window.open(`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(dest)}&checkin=${start}&checkout=${end}&group_adults=2`, "_blank");
+    return;
+  }
+  if (!cityCode) { showToast(`Add "${dest}" to CITY_CODES in the budget script`, "info"); return; }
+  if (!start || !end) { showToast("Set travel dates first", "info"); return; }
+
+  const badge = document.getElementById("hotelLoadingBadge");
+  if (badge) badge.style.display = "inline";
+
+  try {
+    const url = `https://api.makcorps.com/free/${cityCode}?rooms=1&adults=2&checkin=${start}&checkout=${end}&api_key=${apiKey}`;
+    const res  = await fetch(url);
+    if (!res.ok) throw new Error(`Makcorps ${res.status}`);
+    const data = await res.json();
+
+    if (Array.isArray(data) && data.length) {
+      hotelRows = data.slice(0, 5).map((h, i) => ({
+        name:          h.name || `Hotel ${i + 1}`,
+        detail:        `${dest} · Booking.com / Expedia`,
+        pricePerNight: Math.round(+(h.price1 || h.Booking || h.Expedia || 2000) / nights),
+        best:          i === 1,
+        source:        "api",
+        ota:           "Makcorps"
+      }));
+      showToast(`Live prices loaded for ${dest} ✅`, "success");
+    } else {
+      showToast("No hotels found — check city code", "info");
+    }
+  } catch (e) {
+    console.error("fetchHotelPrices:", e);
+    showToast("Makcorps error — check key in config.js", "error");
+  } finally {
+    if (badge) badge.style.display = "none";
+    renderHotelRows();
+  }
+}
+
+// ── Push selected hotel price into the Hotel expense row ──────────────────
+function useHotelInBudget(i) {
+  const { nights } = getTripParams();
+  const total = hotelRows[i].pricePerNight * nights;
+  const idx   = budgetRows.findIndex(r => r.label.toLowerCase().includes("hotel"));
+  if (idx >= 0) {
+    budgetRows[idx].est = total;
+    renderBudgetRows();
+    recalcBudget();
+    showToast(`Hotel estimate updated to ₹${total.toLocaleString("en-IN")} ✅`);
+  } else {
+    showToast("No Hotel row found — add one first", "info");
+  }
+}
+
+// ── Recalculate all totals and refresh UI ─────────────────────────────────
+function recalcBudget() {
+  const total     = +(document.getElementById("totalBudgetInput")?.value) || 0;
+  const confirmed = budgetRows.filter(r =>  r.booked).reduce((s, r) => s + r.actual, 0);
+  const pending   = budgetRows.filter(r => !r.booked).reduce((s, r) => s + r.est,    0);
+  const estSum    = budgetRows.reduce((s, r) => s + r.est, 0);
+  const allSpend  = confirmed + pending;
+  const remaining = total - confirmed;
+  const buffer    = total - allSpend;
+
+  const confPct  = total > 0 ? Math.min(100, Math.round((confirmed / total) * 100)) : 0;
+  const estPct   = total > 0 ? Math.min(100 - confPct, Math.round((pending / total) * 100)) : 0;
+  const totalPct = confPct + estPct;
+
+  // Top stat cards
+  setEl("budgetSpent",         `₹${confirmed.toLocaleString("en-IN")}`);
+  setEl("budgetRemaining",     `₹${Math.max(0, remaining).toLocaleString("en-IN")}`);
+  setEl("budgetRemainingPct",  `${Math.max(0, 100 - confPct)}% of budget`);
+  setEl("budgetSpentLabel",    budgetRows.filter(r => r.booked).map(r => r.label).join(" · ") || "No items confirmed yet");
+  document.getElementById("budgetRemaining").style.color = remaining < 0 ? "var(--danger)" : "var(--success)";
+  document.getElementById("budgetOverAlert").style.display = remaining < 0 ? "block" : "none";
+
+  // Progress bar segments
+  const cBar = document.getElementById("budgetConfirmedBar");
+  const eBar = document.getElementById("budgetEstBar");
+  if (cBar) cBar.style.width = confPct + "%";
+  if (eBar) eBar.style.width = estPct  + "%";
+  setEl("budgetBarPct",       totalPct + "%");
+  setEl("budgetConfirmedPct", confPct  + "%");
+  setEl("budgetEstPct",       estPct   + "%");
+
+  // Footer totals
+  setEl("budgetEstTotal",       `₹${estSum.toLocaleString("en-IN")}`);
+  setEl("budgetActTotal",        total > 0 ? `₹${total.toLocaleString("en-IN")} budget` : "Set budget ↑");
+  setEl("budgetConfirmedTotal", `₹${confirmed.toLocaleString("en-IN")}`);
+  setEl("budgetSavedAmount",     estSum > confirmed ? `₹${(estSum - confirmed).toLocaleString("en-IN")} under est.` : "—");
+
+  // Per-person / per-day / buffer / health
+  const { pCount, days } = getTripParams();
+  setEl("costPerPerson", pCount > 0 ? `₹${Math.round(allSpend / pCount).toLocaleString("en-IN")}` : "—");
+  setEl("costPerDay",    days   > 0 ? `₹${Math.round(allSpend / days  ).toLocaleString("en-IN")}` : "—");
+  setEl("costBuffer",    buffer >= 0 ? `₹${Math.round(buffer).toLocaleString("en-IN")}` : `-₹${Math.round(Math.abs(buffer)).toLocaleString("en-IN")}`);
+  const bufEl = document.getElementById("costBuffer");
+  if (bufEl) bufEl.style.color = buffer < 0 ? "var(--danger)" : buffer < total * 0.1 ? "var(--warn)" : "var(--success)";
+  const hEl = document.getElementById("budgetHealth");
+  if (hEl) {
+    if (!total)           { hEl.textContent = "Set budget";  hEl.style.color = "var(--muted)";   }
+    else if (totalPct<=70){ hEl.textContent = "✅ Healthy";  hEl.style.color = "var(--success)"; }
+    else if (totalPct<=90){ hEl.textContent = "⚠ Tight";    hEl.style.color = "var(--warn)";    }
+    else                  { hEl.textContent = "🔴 Over";     hEl.style.color = "var(--danger)";  }
+  }
+
+  setEl("budgetMeta", `${pCount} ${pCount === 1 ? "person" : "people"} · ${days} days`);
+  drawBudgetChart();
+}
+
+// ── Render / update the Chart.js doughnut chart ───────────────────────────
+function drawBudgetChart() {
+  const canvas   = document.getElementById("budgetChart");
+  const emptyMsg = document.getElementById("chartEmpty");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const rows   = budgetRows.filter(r => (r.booked ? r.actual : r.est) > 0);
+  const labels = rows.map(r => r.label);
+  const data   = rows.map(r => r.booked ? r.actual : r.est);
+  const colors = ["#4fa8ff","#00e5b0","#ffb347","#7c5cfc","#ffd060","#ff5f6d","#5dcaa5"];
+
+  if (!data.length) {
+    if (emptyMsg) emptyMsg.style.display = "block";
+    canvas.style.display = "none";
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = "none";
+  canvas.style.display = "block";
+
+  if (budgetChart) { budgetChart.destroy(); budgetChart = null; }
+  budgetChart = new Chart(canvas, {
+    type: "doughnut",
+    data: { labels, datasets: [{ data, backgroundColor: colors.slice(0, labels.length), borderWidth: 0, hoverOffset: 8 }] },
+    options: {
+      responsive: true, maintainAspectRatio: true, cutout: "65%",
+      plugins: {
+        legend: { position:"right", labels:{ color:"#7a8499", font:{size:11,family:"'DM Sans',sans-serif"}, boxWidth:10, padding:10 } },
+        tooltip: { callbacks: { label: ctx => ` ₹${ctx.parsed.toLocaleString("en-IN")} (${Math.round(ctx.parsed / ctx.dataset.data.reduce((a,b)=>a+b,0)*100)}%)` } }
+      }
+    }
+  });
+}
+
+// ── Row action helpers ────────────────────────────────────────────────────
+function markBooked(i)     { budgetRows[i].booked=true; budgetRows[i].actual=budgetRows[i].actual||budgetRows[i].est; renderBudgetRows(); recalcBudget(); showToast(`${budgetRows[i].label} confirmed ✅`,"success"); }
+function unmarkBooked(i)   { budgetRows[i].booked=false; renderBudgetRows(); recalcBudget(); }
+function removeBudgetRow(i){ budgetRows.splice(i,1); renderBudgetRows(); recalcBudget(); }
+function addBudgetRow()    { budgetRows.push({emoji:"📌",label:"New expense",est:500,actual:0,booked:false}); renderBudgetRows(); recalcBudget(); setTimeout(()=>{ const ins=document.querySelectorAll("#budgetRows input:not([type]),#budgetRows input[type=text]"); ins[ins.length-1]?.focus(); },50); }
+function resetBudget()     { _budgetInit=false; const inp=document.getElementById("totalBudgetInput"); if(inp) inp.value=""; initBudget(true); showToast("Budget reset 🔄"); }
+function setHotelBest(i)   { hotelRows.forEach((h,j)=>h.best=(j===i)?!h.best:false); renderHotelRows(); }
+function removeHotelRow(i) { hotelRows.splice(i,1); renderHotelRows(); }
+function addHotelRow()     { hotelRows.push({name:"New hotel",detail:"Location · Amenities",pricePerNight:2000,best:false,source:"placeholder"}); renderHotelRows(); }
+
+// ── Holiday surge price warning in hotel section ──────────────────────────
+function checkHolidayHotelWarning() {
+  const el = document.getElementById("holidayHotelWarning");
+  if (!el || !state.holidays?.length) return;
+  const { start, end } = getTripParams();
+  const overlaps = findHolidayOverlaps(start, end, state.holidays);
+  if (overlaps.length) {
+    el.textContent = ` ⚠ ${overlaps[0].name} falls in your dates — expect surge pricing.`;
+    el.style.color = "var(--danger)";
+  }
+}
+
+// ── Intercept showTab() to init budget on first visit ────────────────────
+// Wraps the showTab defined in js/main.js without overwriting it
+const _origShowTabBudget = window.showTab;
+window.showTab = function(name) {
+  _origShowTabBudget && _origShowTabBudget(name);
+  if (name === "budget") {
+    if (!_budgetInit) initBudget();
+    else { recalcBudget(); checkHolidayHotelWarning(); }
+  }
+};
+
+// ── Re-seed budget when trip dates or traveler count changes ──────────────
+["startDate", "endDate", "travelers"].forEach(id => {
+  document.getElementById(id)?.addEventListener("change", () => {
+    if (_budgetInit) { _budgetInit = false; initBudget(true); }
+  });
+});
+
+// ── setMobileActive — highlight the active mobile nav button ─────────────
+function setMobileActive(btn) {
+  btn.parentElement.querySelectorAll(".mobile-nav-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+</script>
+<!-- /Budget Engine -->
+
+</body>
+</html>
