@@ -88,14 +88,17 @@ python3 -m http.server 8080
 
 ```
 tripmind/
-├── index.html         ← Main app (all 7 tabs)
-├── css/
-│   └── styles.css     ← Dark theme, fully responsive
+├── index.html
+├── .gitignore
+├── README.md
+├── styles.css
+│   
 └── js/
-    ├── config.js      ← 🔑 All API keys
-    ├── api.js         ← Weather, Holidays, Routing, Map, Hotels, Safety Score
-    ├── firebase.js    ← Firestore CRUD
-    └── main.js        ← UI rendering, tab navigation, all panel logic
+    ├── config.js          ← your REAL keys (not committed to GitHub)
+    ├── config.example.js  ← placeholder version (committed to GitHub)
+    ├── api.js
+    ├── firebase.js
+    └── main.js
 ```
 
 ---
