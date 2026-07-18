@@ -4,6 +4,8 @@
 > A fully functional, API-driven holiday planner with live traffic, weather,
 > public holiday detection, budget tracking, and cloud-saved trip history.
 
+🔗 **Check it live here:** [https://tripmind-arnav.netlify.app](https://tripmind-arnav.netlify.app)
+
 ---
 
 ## 📸 What It Does
